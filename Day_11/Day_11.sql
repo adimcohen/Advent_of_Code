@@ -95,11 +95,11 @@ from i1
 where ID % 7 = 2
 
 ;with rec as
-	(select cast([value] as int) OldItem, cast([value] as int) Item, MonkeyID OldOwnerMonkey, MonkeyID OwnerMonkey, cast(0 as int) RoundID, cast(-1 as int) TurnMonkey, 0 Cycle
+	(select cast([value] as int) Item, MonkeyID OldOwnerMonkey, MonkeyID OwnerMonkey, cast(0 as int) RoundID, cast(-1 as int) TurnMonkey, 0 Cycle
 		from #Monkeys
 			cross apply string_split(Items, ',')
 		union all
-		select r.Item, cast(NewItemValue as int) Item
+		select cast(NewItemValue as int) Item
 			, r.OwnerMonkey
 			, iif(r.OwnerMonkey = tm.TurnMonkey,
 					iif(NewItemValue % Test = 0,
@@ -148,11 +148,11 @@ option (maxrecursion 32767)
 		from rm
 	)
 	, rec as
-	(select cast([value] as int) OldItem, cast([value] as int) Item, MonkeyID OldOwnerMonkey, MonkeyID OwnerMonkey, cast(0 as int) RoundID, cast(-1 as int) TurnMonkey, 0 Cycle
+	(select cast([value] as int) Item, MonkeyID OldOwnerMonkey, MonkeyID OwnerMonkey, cast(0 as int) RoundID, cast(-1 as int) TurnMonkey, 0 Cycle
 		from #Monkeys
 			cross apply string_split(Items, ',')
 		union all
-		select r.Item, cast(NewItemValue as int) Item
+		select cast(NewItemValue as int) Item
 			, r.OwnerMonkey
 			, iif(r.OwnerMonkey = tm.TurnMonkey,
 					iif(NewItemValue % Test = 0,
@@ -198,7 +198,7 @@ option (maxrecursion 32767)
 		from #rec
 		where Cycle = 3500*(select count(*) from #Monkeys)
 		union all
-		select r.Item, cast(NewItemValue as int) Item
+		select cast(NewItemValue as int) Item
 			, r.OwnerMonkey
 			, iif(r.OwnerMonkey = tm.TurnMonkey,
 					iif(NewItemValue % Test = 0,
@@ -222,7 +222,7 @@ option (maxrecursion 32767)
 		where NewRoundID <= 7000
 	)
 insert into #rec
-select OldItem, Item, OldOwnerMonkey, OwnerMonkey, RoundID, TurnMonkey, Cycle
+select Item, OldOwnerMonkey, OwnerMonkey, RoundID, TurnMonkey, Cycle
 from rec
 where IsCarryOver = 0
 option (maxrecursion 32767)
@@ -245,7 +245,7 @@ option (maxrecursion 32767)
 		from #rec
 		where Cycle = 7000*(select count(*) from #Monkeys)
 		union all
-		select r.Item, cast(NewItemValue as int) Item
+		select cast(NewItemValue as int) Item
 			, r.OwnerMonkey
 			, iif(r.OwnerMonkey = tm.TurnMonkey,
 					iif(NewItemValue % Test = 0,
