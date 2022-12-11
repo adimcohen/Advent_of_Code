@@ -8,7 +8,6 @@ The input is included in the code. I know it's gross, but I prefer it over bulk 
 I want the code to be copy-paste-run.
 
 I know it's not all as efficient as can be, and would love to get feedback with optimizations to adimcohen@gmail.com.
-.
-.
-.
+
+
 LoL... just realized I've mispelled the repo's name. Oops. Hope the code is solid though.
