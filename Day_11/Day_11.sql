@@ -133,157 +133,104 @@ from Totals
 option (maxrecursion 32767)
 
 --Solution 2
-----recursion #1
-;with rm as
-	(select MonkeyID, Test
-	from #Monkeys
-	where MonkeyID = 0
-	union all
-	select m.MonkeyID, r.Test * m.Test
-	from rm r
-		inner join #Monkeys m on m.MonkeyID = r.MonkeyID + 1
-	)
-	, a as
-	(select max(Test) AllTests
-		from rm
-	)
-	, rec as
-	(select cast([value] as int) Item, MonkeyID OldOwnerMonkey, MonkeyID OwnerMonkey, cast(0 as int) RoundID, cast(-1 as int) TurnMonkey, 0 Cycle
+/*
+Part 2 pushed me past the 32767 maxrecursion limit, so I had to break the recursion into a loop to process maxrecursion limit each iteration and dump the interim results into a temp table.
+Tried to do the 3 recursion in the same statement, but it hung there forever.
+Could be done in a single statement if it wasn't for the maxrecursion limit.
+*/
+declare @RoundCount int = 10000
+
+create table #rec(Item int,
+				OldOwnerMonkey bigint,
+				OwnerMonkey bigint,
+				RoundID int,
+				TurnMonkey int,
+				Cycle int)
+create clustered index IX_#rec on #rec(Cycle)
+
+declare @RecCount int,
+		@i int = 1
+
+select @RecCount = ceiling(count(*)*@RoundCount/32767.)
+from #Monkeys
+
+while @i <= @RecCount
+begin
+	;with rInput as
+		(select isnull(max(RoundID), 0) CurrentRoundID
+			from #rec
+		)
+		, rInput1 as
+		(select CurrentRoundID, NextRoundID
+			from rInput
+				cross apply (select CurrentRoundID + @RoundCount / @RecCount NextRoundID1) i
+				cross apply (select iif(@i < @RecCount, NextRoundID1, @RoundCount) NextRoundID) i1
+		)
+		, rm as
+		(select MonkeyID, Test
 		from #Monkeys
-			cross apply string_split(Items, ',')
+		where MonkeyID = 0
 		union all
-		select cast(NewItemValue as int) Item
-			, r.OwnerMonkey
-			, iif(r.OwnerMonkey = tm.TurnMonkey,
-					iif(NewItemValue % Test = 0,
-						True,
-						False),
-				r.OwnerMonkey) OwnerMonkey
-			, NewRoundID RoundID
-			, tm.TurnMonkey
-			, r.Cycle + 1 Cycle
-		from rec r
-			inner join #Monkeys m on m.MonkeyID = r.OwnerMonkey
-			cross apply (select iif(r.TurnMonkey = LastMonkeyID, 0, r.TurnMonkey + 1) TurnMonkey,
-							r.RoundID + iif(r.TurnMonkey = m.LastMonkeyID or RoundID = 0, 1, 0) NewRoundID) tm
-			cross apply (select isnull(m.OperationNumber, r.Item) OperationNumber1) on1
-			cross apply (select iif(r.OwnerMonkey = tm.TurnMonkey,
-									iif(m.Operation = '+',
-											r.Item + OperationNumber1,
-											r.Item * OperationNumber1) % (select AllTests from a),
-									r.Item) NewItemValue) nv
-		where NewRoundID <= 3500
-	)
-select *
-into #rec
-from rec
-option (maxrecursion 32767)
+		select m.MonkeyID, r.Test * m.Test
+		from rm r
+			inner join #Monkeys m on m.MonkeyID = r.MonkeyID + 1
+		)
+		, a as
+		(select max(Test) AllTests
+			from rm
+		)
+		, Anchor as
+		(select *
+			from #rec
+			where Cycle = (select CurrentRoundID from rInput1)*(select count(*) from #Monkeys)
+			union all
+			select cast([value] as int) Item, MonkeyID OldOwnerMonkey, MonkeyID OwnerMonkey, cast(0 as int) RoundID, cast(-1 as int) TurnMonkey, 0 Cycle
+			from #Monkeys
+				cross apply string_split(Items, ',')
+			where not exists (select * from #rec)
+		)
+		, rec as
+		(select *, 1 IsCarryOver
+			from Anchor
+			union all
+			select cast(NewItemValue as int) Item
+				, r.OwnerMonkey
+				, iif(r.OwnerMonkey = tm.TurnMonkey,
+						iif(NewItemValue % Test = 0,
+							True,
+							False),
+					r.OwnerMonkey) OwnerMonkey
+				, NewRoundID RoundID
+				, tm.TurnMonkey
+				, r.Cycle + 1 Cycle,
+				0 IsCarryOver
+			from rec r
+				inner join #Monkeys m on m.MonkeyID = r.OwnerMonkey
+				cross apply (select iif(r.TurnMonkey = LastMonkeyID, 0, r.TurnMonkey + 1) TurnMonkey,
+								r.RoundID + iif(r.TurnMonkey = m.LastMonkeyID or RoundID = 0, 1, 0) NewRoundID) tm
+				cross apply (select isnull(m.OperationNumber, r.Item) OperationNumber1) on1
+				cross apply (select iif(r.OwnerMonkey = tm.TurnMonkey,
+										iif(m.Operation = '+',
+												r.Item + OperationNumber1,
+												r.Item * OperationNumber1) % (select AllTests from a),
+										r.Item) NewItemValue) nv
+			where NewRoundID <= (select NextRoundID from rInput1)
+		)
+	insert into #rec
+	select Item, OldOwnerMonkey, OwnerMonkey, RoundID, TurnMonkey, Cycle
+	from rec
+	where IsCarryOver = 0
+	option (maxrecursion 32767)
 
-----recursion #2
-;with rm as
-	(select MonkeyID, Test
-	from #Monkeys
-	where MonkeyID = 0
-	union all
-	select m.MonkeyID, r.Test * m.Test
-	from rm r
-		inner join #Monkeys m on m.MonkeyID = r.MonkeyID + 1
-	)
-	, a as
-	(select max(Test) AllTests
-		from rm
-	)
-	, rec as
-	(select *, 1 IsCarryOver
-		from #rec
-		where Cycle = 3500*(select count(*) from #Monkeys)
-		union all
-		select cast(NewItemValue as int) Item
-			, r.OwnerMonkey
-			, iif(r.OwnerMonkey = tm.TurnMonkey,
-					iif(NewItemValue % Test = 0,
-						True,
-						False),
-				r.OwnerMonkey) OwnerMonkey
-			, NewRoundID RoundID
-			, tm.TurnMonkey
-			, r.Cycle + 1 Cycle,
-			0 IsCarryOver
-		from rec r
-			inner join #Monkeys m on m.MonkeyID = r.OwnerMonkey
-			cross apply (select iif(r.TurnMonkey = LastMonkeyID, 0, r.TurnMonkey + 1) TurnMonkey,
-							r.RoundID + iif(r.TurnMonkey = m.LastMonkeyID or RoundID = 0, 1, 0) NewRoundID) tm
-			cross apply (select isnull(m.OperationNumber, r.Item) OperationNumber1) on1
-			cross apply (select iif(r.OwnerMonkey = tm.TurnMonkey,
-									iif(m.Operation = '+',
-											r.Item + OperationNumber1,
-											r.Item * OperationNumber1) % (select AllTests from a),
-									r.Item) NewItemValue) nv
-		where NewRoundID <= 7000
-	)
-insert into #rec
-select Item, OldOwnerMonkey, OwnerMonkey, RoundID, TurnMonkey, Cycle
-from rec
-where IsCarryOver = 0
-option (maxrecursion 32767)
+	set @i += 1
+end
 
-;with rm as
-	(select MonkeyID, Test
-	from #Monkeys
-	where MonkeyID = 0
-	union all
-	select m.MonkeyID, r.Test * m.Test
-	from rm r
-		inner join #Monkeys m on m.MonkeyID = r.MonkeyID + 1
-	)
-	, a as
-	(select max(Test) AllTests
-		from rm
-	)
-	, rec as
-	(select *, 1 IsCarryOver
-		from #rec
-		where Cycle = 7000*(select count(*) from #Monkeys)
-		union all
-		select cast(NewItemValue as int) Item
-			, r.OwnerMonkey
-			, iif(r.OwnerMonkey = tm.TurnMonkey,
-					iif(NewItemValue % Test = 0,
-						True,
-						False),
-				r.OwnerMonkey) OwnerMonkey
-			, NewRoundID RoundID
-			, tm.TurnMonkey
-			, r.Cycle + 1 Cycle,
-			0 IsCarryOver
-		from rec r
-			inner join #Monkeys m on m.MonkeyID = r.OwnerMonkey
-			cross apply (select iif(r.TurnMonkey = LastMonkeyID, 0, r.TurnMonkey + 1) TurnMonkey,
-							r.RoundID + iif(r.TurnMonkey = m.LastMonkeyID or RoundID = 0, 1, 0) NewRoundID) tm
-			cross apply (select isnull(m.OperationNumber, r.Item) OperationNumber1) on1
-			cross apply (select iif(r.OwnerMonkey = tm.TurnMonkey,
-									iif(m.Operation = '+',
-											r.Item + OperationNumber1,
-											r.Item * OperationNumber1) % (select AllTests from a),
-									r.Item) NewItemValue) nv
-		where NewRoundID <= 10000
-	)
-	, AllRec as
-	(select OldOwnerMonkey
-		from #rec
-		where OldOwnerMonkey = TurnMonkey
-		union all
-		select OldOwnerMonkey
-		from rec
-		where OldOwnerMonkey = TurnMonkey
-			and IsCarryOver = 0
-	)
-	, Totals as
+;with Totals as
 	(select top 2 OldOwnerMonkey, count_big(*) cnt
-		from AllRec
+		from #rec
+		where OldOwnerMonkey = TurnMonkey
 		group by OldOwnerMonkey
 		order by cnt desc
 	)
 select min(cnt) * max(cnt) Answer2
 from Totals
-option (maxrecursion 32767)
