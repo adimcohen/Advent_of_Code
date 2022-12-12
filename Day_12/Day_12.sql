@@ -102,6 +102,7 @@ from AOC_2022_Day12_Input i
 select min(Steps) Answer1
 from Rt
 where LastElevation = 'E' collate SQL_Latin1_General_CP1_CS_AS
+option (maxdop 1)
 
 ;with Rt as
 	(select last_value(i1.Elevation) within group (graph path) LastElevation,
@@ -115,6 +116,7 @@ where LastElevation = 'E' collate SQL_Latin1_General_CP1_CS_AS
 select min(Steps) Answer2
 from Rt
 where LastElevation = 'E' collate SQL_Latin1_General_CP1_CS_AS
+option (maxdop 1)
 
 drop table if exists AOC_2022_Day12_Input
 drop table if exists AOC_2022_Day12_Edges
