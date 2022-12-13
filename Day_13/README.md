@@ -1,1 +1,1 @@
-Got to use Graph for the first time :)
+Used quite a few inline table functions to make it more managable.
