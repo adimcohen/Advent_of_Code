@@ -130,5 +130,6 @@ from Lst
 	cross apply (select Point.STX X, Point.STY Y) xy
 where X between @Min and @Max
 	and Y between @Min and @Max
+	and round(MultiPol.STGeometryN(n.Num).STArea(), 0) >= 1
 order by abs(cast(X as decimal(36, 20)) - cast(round(X, 0) as int)),
 	abs(cast(Y as decimal(36, 20)) - cast(round(Y, 0) as int))
