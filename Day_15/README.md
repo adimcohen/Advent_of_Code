@@ -1,2 +1,1 @@
-Finally upgraded to 2022, so I could use generate_series instead of using a numbers table. Not sure it's any better as far as performance goes.<BR>
-I used the geometry data type functionality, which is a first for me.
+Used the geometry data type functionality, which is a first for me.

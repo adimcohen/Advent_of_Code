@@ -28,6 +28,21 @@ Sensor at x=712588, y=3677889: closest beacon is at x=-32922, y=3577599
 Sensor at x=22095, y=3888893: closest beacon is at x=-32922, y=3577599
 Sensor at x=3248397, y=2952817: closest beacon is at x=3212538, y=2537816'
 
+drop table if exists #Numbers
+--Create a numbers table - never leave home without one
+;with rec as
+	(select 1 Num
+	union all
+	select Num + 1
+	from rec
+	where Num < 32767
+	)
+select Num
+into #Numbers
+from rec
+option (maxrecursion 32767)
+create unique clustered index IX_#Numbers on #Numbers(Num)
+
 drop table if exists #Input
 drop table if exists #Covered
 select cast(json_value(js, '$[0][0]') as bigint) SensorX, cast(json_value(js, '$[0][1]') as bigint) SensorY, cast(json_value(js, '$[1][0]') as bigint) BeaconX, cast(json_value(js, '$[1][1]') as bigint) BeaconY
@@ -104,14 +119,14 @@ declare @Min int = 0,
 select top 1 cast(round(X, 0) as bigint)*cast(@Multiplier as bigint) + cast(round(Y, 0) as bigint) Answer2
 from Lst
 	cross apply (select geometry::STGeomFromText(N'MULTIPOLYGON(' + string_agg(Pol, ',') + ')', 0).MakeValid() MultiPol
-					from (select ordinal ID, iif(left([value], 1) = ',', '(' + stuff([value], 1, 2, ''), replace([value], 'POLYGON ', ''))+ '))' Pol
-							from string_split(Pol.ToString(), ')', 1)
+					from (select row_number() over(order by (select 1)) ID, iif(left([value], 1) = ',', '(' + stuff([value], 1, 2, ''), replace([value], 'POLYGON ', ''))+ '))' Pol
+							from string_split(Pol.ToString(), ')')
 							where [value] <> ''
-								and ordinal > 1
 						) t
+					where ID > 1
 				) s
-	cross apply generate_series(1, MultiPol.STNumGeometries())
-	cross apply (select MultiPol.STGeometryN([value]).STCentroid() Point) p
+	inner join #Numbers n on n.Num between 1 and MultiPol.STNumGeometries()
+	cross apply (select MultiPol.STGeometryN(n.Num).STCentroid() Point) p
 	cross apply (select Point.STX X, Point.STY Y) xy
 where X between @Min and @Max
 	and Y between @Min and @Max
