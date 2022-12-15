@@ -69,7 +69,7 @@ declare @CheckY int = 2000000
 	(select min(SensorX - Distance) MinX, max(SensorX + Distance) MaxX
 		from Input
 	)
-select round(abs(Pol.STIntersection(CrossLine).STPointN(1).STX - round(Pol.STIntersection(CrossLine).STPointN(Pol.STIntersection(CrossLine).STNumPoints()).STX, 0)), 0) Answer1
+select round(abs(Pol.STIntersection(CrossLine).STPointN(1).STX - Pol.STIntersection(CrossLine).STPointN(Pol.STIntersection(CrossLine).STNumPoints()).STX), 0) Answer1
 from Lst
 	cross join MinMaxX
 	cross apply (select geometry::STGeomFromText(concat(N'LINESTRING(', MinX, N' ', @CheckY, N',', MaxX, N' ', @CheckY, N')'), 0) CrossLine) l
