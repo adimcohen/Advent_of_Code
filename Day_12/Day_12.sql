@@ -1,4 +1,3 @@
-set nocount on
 declare @Str varchar(max) =
 'abaacccccccccccccaaaaaaaccccccccccccccccccccccccccccccccccaaaaaa
 abaaccccccccccccccaaaaaaaaaaccccccccccccccccccccccccccccccccaaaa
