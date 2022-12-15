@@ -35,24 +35,44 @@ into #Input
 from string_split(replace(@Str, char(13), ''), char(10))
 	cross apply (select '[' + replace(replace(replace([value], 'Sensor at x=', '['), 'y=', ''), ': closest beacon is at x=', '],[') + ']' + ']' js) j
 
+
 declare @CheckY int = 2000000
 ;with Input as
-	(select distinct CoveredX, CoveredY
-		from #Input
+	(select row_number() over(order by (select 1)) ID, i.*, Distance
+		from #Input i
 			cross apply (select abs(SensorX - BeaconX) + abs(SensorY - BeaconY) Distance) d
-			cross apply generate_series(cast(1 as int), cast(Distance as int)) n
-			cross join (values(1), (-1)) m(Multiplier)
-			cross apply (select (Distance - n.[value] + 1)*Multiplier Dist1,
-							n.[value]*2 - 1 Covered) d1
-			cross apply generate_series(cast(SensorX - Covered / 2 as int), cast(SensorX + Covered / 2 as int), 1) n1
-			cross apply (select SensorY + Dist1 CoveredY, n1.[value] CoveredX) cxy
-		where @CheckY between SensorY - Distance and SensorY + Distance
-			and CoveredY = @CheckY
-			and not (CoveredY = BeaconY
-						and CoveredX = BeaconX)
 	)
-select count(*) Answer1
-from Input
+	, Polygons as
+	(select ID, geometry::STGeomFromText(concat(N'POLYGON((', NorthX, N' ', NorthY, N',', EastX, N' ', EastY, N',', SouthX, N' ', SouthY, N',', WestX, N' ', WestY, N',', NorthX, N' ', NorthY, '))'), 0) Pol
+		from Input
+			cross apply (select SensorX NorthX, SensorY - Distance NorthY,
+								SensorX SouthX, SensorY + Distance SouthY,
+								SensorX - Distance EastX, SensorY EastY,
+								SensorX + Distance WestX, SensorY WestY
+						) Points
+	)
+	, rec as
+	(select ID, Pol
+	from Polygons
+	where ID = 1
+	union all
+	select p.ID, r.Pol.STUnion(p.Pol)
+	from rec r
+		inner join Polygons p on p.ID = r.ID + 1
+	)
+	, Lst as
+	(select top 1 Pol
+		from rec
+		order by ID desc
+	),
+	MinMaxX as
+	(select min(SensorX - Distance) MinX, max(SensorX + Distance) MaxX
+		from Input
+	)
+select round(abs(Pol.STIntersection(CrossLine).STPointN(1).STX - round(Pol.STIntersection(CrossLine).STPointN(Pol.STIntersection(CrossLine).STNumPoints()).STX, 0)), 0) Answer1
+from Lst
+	cross join MinMaxX
+	cross apply (select geometry::STGeomFromText(concat(N'LINESTRING(', MinX, N' ', @CheckY, N',', MaxX, N' ', @CheckY, N')'), 0) CrossLine) l
 
 declare @Min int = 0,
 		@Max int = 4000000,
