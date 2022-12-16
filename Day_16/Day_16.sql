@@ -140,6 +140,7 @@ from rec
 select *
 into #rec
 from rec
+create unique clustered index IX_#rec on #rec(ID)
 
 select max(m.Flow + e.Flow) Answer2
 from #rec m
