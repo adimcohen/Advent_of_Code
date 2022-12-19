@@ -1,0 +1,2 @@
+Solved using spatial data types.<BR>
+Took me a long time to figure out I needed more data to detect a pattern for part 2. Ended up using a while loop to overcome the maxrecursion 32767 limit in order to get 4 gas cycles. 
