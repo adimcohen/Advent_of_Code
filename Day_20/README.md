@@ -1,0 +1,2 @@
+For part 2 I had to loop to overcome the 32767 maxrecursion limit, and if I'm already looping, might as well loop per iteration and store only the last line to reduce memory consumption.<BR>
+Could have probably reached the same with a recursion in a TVF called by an external recursion, but I didn't :)
