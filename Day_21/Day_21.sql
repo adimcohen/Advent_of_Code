@@ -8,7 +8,7 @@ create table AoC_2022_Day21_Monkeys
 	) as node
 
 GO
-create or alter function fn_AOC_2022_Day22_DoMath(@Val1 bigint, @Val2 bigint, @Operation char(1), @Reverse bit, @IsFirstValue bit) returns table
+create or alter function fn_AOC_2022_Day21_DoMath(@Val1 bigint, @Val2 bigint, @Operation char(1), @Reverse bit, @IsFirstValue bit) returns table
 as
 	return select case Operation
 						when '+' then Val1 + Val2
@@ -31,7 +31,7 @@ as
 						or (@Reverse = 1 and ReverseOperation = @Operation)
 					) o
 GO
-create or alter function fn_AOC_2022_Day22_GetNewMonkeyState(@MonkeyState varchar(max)) returns table
+create or alter function fn_AOC_2022_Day21_GetNewMonkeyState(@MonkeyState varchar(max)) returns table
 as
 	return with ms as
 					(select json_value([value], '$.Monkey') Monkey,
@@ -45,7 +45,7 @@ as
 									inner join ms m2 on m.Monkey2 = m2.Monkey
 									cross apply (select isnull(m.Val,
 																(select Result
-																	from fn_AOC_2022_Day22_DoMath(m1.Val, m2.Val, m.Operation, 0, 0)
+																	from fn_AOC_2022_Day21_DoMath(m1.Val, m2.Val, m.Operation, 0, 0)
 																)
 																) NewVal
 												) nv
@@ -2252,7 +2252,7 @@ from AoC_2022_Day21_Monkeys m
 		union all
 		select ID + 1, NewMonkeyState
 		from rec r
-			cross apply fn_AOC_2022_Day22_GetNewMonkeyState(r.MonkeyState)
+			cross apply fn_AOC_2022_Day21_GetNewMonkeyState(r.MonkeyState)
 		where json_value(r.MonkeyState, '$[0].RootValue') is null
 	)
 	, Lst as
@@ -2307,7 +2307,7 @@ option (maxdop 1)
 			inner join #MonkeyRoute mr on mr.ID = r.ID + 1
 			inner join #MonkeyValues v on v.Monkey in (m.Monkey1, m.Monkey2)
 										and v.Monkey <> mr.Monkey
-			cross apply fn_AOC_2022_Day22_DoMath(r.Val, v.Val, m.Operation, 1, iif(v.Monkey = m.Monkey1, 1, 0)) mt
+			cross apply fn_AOC_2022_Day21_DoMath(r.Val, v.Val, m.Operation, 1, iif(v.Monkey = m.Monkey1, 1, 0)) mt
 	)
 select Val Answer2
 from rec
