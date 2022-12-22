@@ -4,7 +4,7 @@ as
 						ActualNumber,
 						@NumberCount - ActualNumber%ModNumber)%ModNumber WrappedIndex
 			from (select iif(@Index >= 0, @Index, @NumberCount - @Index) ActualNumber) a
-				cross apply (select iif(@Index > @NumberCount, @NumberCount, @NumberCount - 1) ModNumber) m
+				cross apply (select iif(ActualNumber > @NumberCount, @NumberCount, @NumberCount - 1) ModNumber) m
 GO
 declare @Str nvarchar(max) =
 '-624
