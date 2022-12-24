@@ -25,7 +25,7 @@ create or alter function fn_AOC_2022_Day22_GetNextColRow(@Gain int,
 														@MapMax int
 														) returns table
 as return select coalesce(mn.PlannedColRow, mx.PlannedColRow, mnw.PlannedColRow, mxw.PlannedColRow, p.PlannedColRow) PlannedColRow
-				, coalesce(mn.CarryOverSteps, mx.CarryOverSteps, mnw.CarryOverSteps, mxw.CarryOverSteps) CarryOverSteps
+				, coalesce(mnw.CarryOverSteps, mxw.CarryOverSteps) CarryOverSteps
 			from (select case when @Gain > 0 and @HittingAWall = 1
 								then @Wall - 1
 							when @Gain < 0 and @HittingAWall = 1
@@ -33,13 +33,13 @@ as return select coalesce(mn.PlannedColRow, mx.PlannedColRow, mnw.PlannedColRow,
 							else @PlannedColRow
 						end PlannedColRow
 					) p
-				outer apply (select @MapMin PlannedColRow, cast(null as int) CarryOverSteps
+				outer apply (select @MapMin PlannedColRow
 								where @HittingAWall = 0
 									and @CanWrap = 0
 									and @Gain < 0
 									and @PlannedColRow < @MapMin
 							) mn
-				outer apply (select @MapMax PlannedColRow, cast(null as int) CarryOverSteps
+				outer apply (select @MapMax PlannedColRow
 								where @HittingAWall = 0
 									and @CanWrap = 0
 									and @Gain > 0
@@ -271,7 +271,6 @@ declare @Str varchar(max) =
 
 drop table if exists #Map
 drop table if exists #Instructions
-drop table if exists ##rec
 drop table if exists #Numbers
 
 --Number Table
