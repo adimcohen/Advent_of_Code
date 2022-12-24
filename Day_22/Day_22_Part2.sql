@@ -1,3 +1,11 @@
+/*
+Works for this kind of cube:
+   [A][B]
+   [C]
+[E][D]
+[F]
+*/
+
 drop table if exists AOC_2022_Day22_Map
 drop table if exists AOC_2022_Day22_TransitionRules
 drop table if exists AOC_2022_Day22_SideBoundaries
