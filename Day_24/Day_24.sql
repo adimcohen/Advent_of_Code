@@ -8,7 +8,7 @@ create table AOC_2022_Day24_Blizzards(X tinyint,
 GO
 create or alter function fn_AOC_2022_Day24_MoveBlizzards(@Minute int) returns table
 as
-return select distinct n.X, n.Y
+return select n.X, n.Y
 		from AOC_2022_Day24_Blizzards b
 			cross apply (select *
 							from (values('^', X, (YLength - @Minute%YLength + Y) % YLength)
