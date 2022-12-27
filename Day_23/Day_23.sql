@@ -1,4 +1,4 @@
-create or alter function fn_AOC_2022_Day13_GetNewElfState(@ElfState varchar(max),
+create or alter function fn_AOC_2022_Day23_GetNewElfState(@ElfState varchar(max),
 															@DirOrder tinyint) returns table
 as
 return with Dir as
@@ -163,7 +163,7 @@ order by 2, 1
 	union all
 	select Rnd + 1, NewElfState
 	from rec r
-		cross apply fn_AOC_2022_Day13_GetNewElfState(r.ElfState, r.Rnd % 4)
+		cross apply fn_AOC_2022_Day23_GetNewElfState(r.ElfState, r.Rnd % 4)
 	where r.Rnd < 10
 		and ElvesMoved > 0
 	)
@@ -189,7 +189,7 @@ from Lst
 	union all
 	select Rnd + 1, NewElfState
 	from rec r
-		cross apply fn_AOC_2022_Day13_GetNewElfState(r.ElfState, r.Rnd % 4)
+		cross apply fn_AOC_2022_Day23_GetNewElfState(r.ElfState, r.Rnd % 4)
 	where ElvesMoved > 0
 	)
 select count(*) Answer2 --Need to add 1 as that's the round where nobody moves, but the CTE already has the anchor row, so that's the +1
