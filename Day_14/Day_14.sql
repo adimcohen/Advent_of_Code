@@ -75,6 +75,52 @@ return with Layout as
 		from LastStep
 		where DownY is not null
 GO
+create or alter function fn_AOC_2022_Day14_TrimSand(@CurrentSand varchar(max)) returns table
+as
+return with AllSand as
+			(select X, Y
+				from openjson(@CurrentSand, '$')
+					cross apply (select cast(json_value([value], '$[0]') as int) X, cast(json_value([value], '$[1]') as int) Y) p
+			)
+			, Layout as
+			(select X, Y
+				from AOC_2022_Day14_Input1
+				union all
+				select *
+				from AllSand
+			)
+			, TopLevel as
+			(select *
+				from AllSand l
+				where (select count(*)
+						from Layout l1
+						where l1.Y = l.Y - 1
+							and l1.X between l.X - 1 and l.X + 1
+						) < 3
+			)
+		select concat('[', string_agg(cast(concat('[', X, ',', Y, ']') as varchar(max)), ','), ']') CurrentSand
+		from TopLevel
+GO
+create or alter function fn_AOC_2022_Day14_RunCycle(@CurrentSand varchar(max),
+													@SandUnits int,
+													@CycleLength int,
+													@Floor int) returns table
+as
+return with rec as
+			(select @CurrentSand CurrentSand, @SandUnits SandUnits
+			union all
+			select ns.CurrentSand, SandUnits + 1
+			from rec r
+				cross apply fn_AOC_2022_Day14_LandSandInt(r.CurrentSand, 500, 0, @Floor) n
+				cross apply (select cast(json_modify(r.CurrentSand, 'append $', json_query(concat('[', X, ', ', Y, ']'))) as varchar(max)) CurrentSand) ns
+			where n.X > -1
+				and (r.SandUnits % @CycleLength > 0 or r.SandUnits = @SandUnits)
+			)
+		select top 1 *
+		from rec
+		where SandUnits > @SandUnits
+		order by SandUnits desc
+GO
 declare @Str varchar(max) =
 '502,19 -> 507,19
 523,100 -> 523,104 -> 519,104 -> 519,111 -> 528,111 -> 528,104 -> 526,104 -> 526,100
@@ -225,6 +271,10 @@ declare @Str varchar(max) =
 523,136 -> 523,138 -> 518,138 -> 518,145 -> 535,145 -> 535,138 -> 528,138 -> 528,136'
 
 
+--set @Str =
+--'498,4 -> 498,6 -> 496,6
+--503,4 -> 502,4 -> 502,9 -> 494,9'
+
 drop table if exists #Numbers
 --Create a numbers table - never leave home without one
 ;with rec as
@@ -269,34 +319,32 @@ from XY
 create unique clustered index IX_AOC_2022_Day14_Input1 on AOC_2022_Day14_Input1(X, Y)
 create unique index IX_AOC_2022_Day14_Input1a on AOC_2022_Day14_Input1(Y, X)
 
-
+--Takes ~35 seconds
 ;with rec as
 	(select cast('[]' as varchar(max)) CurrentSand, 0 SandUnits
 	union all
-	select cast(json_modify(r.CurrentSand, 'append $', json_query(concat('[', X, ', ', Y, ']'))) as varchar(max)) CurrentSand, SandUnits + 1
+	select ts.CurrentSand, n.SandUnits
 	from rec r
-		cross apply fn_AOC_2022_Day14_LandSandInt(r.CurrentSand, 500, 0, null) n
-	where n.X > -1
+		cross apply fn_AOC_2022_Day14_RunCycle(r.CurrentSand, r.SandUnits, 100, null) n
+		cross apply fn_AOC_2022_Day14_TrimSand(n.CurrentSand) ts
 	)
-select  max(SandUnits) Answer1
+select max(SandUnits) Answer1
 from rec
 option (maxrecursion 32767)
 
-/*
-Commented out as it takes hours to run :)
+--Takes ~1:10 hours
 ;with f as
 	(select max(Y) + 2 Flr
 		from AOC_2022_Day14_Input1)
 	, rec as
-	(select cast('[]' as varchar(max)) CurrentSand, 0 SandUnits
-		, cast(null as int) X, cast(null as int) Y
+	(select cast('[]' as varchar(max)) CurrentSand, 0 SandUnits, flr
+		from f
 	union all
-	select cast(json_modify(r.CurrentSand, 'append $', json_query(concat('[', n.X, ', ', n.Y, ']'))) as varchar(max)) CurrentSand, SandUnits + 1, n.X, n.Y
+	select ts.CurrentSand, n.SandUnits, flr
 	from rec r
-		cross join f
-		cross apply fn_AOC_2022_Day14_LandSandInt(r.CurrentSand, 500, 0, Flr) n
+		cross apply fn_AOC_2022_Day14_RunCycle(r.CurrentSand, r.SandUnits, 100, Flr) n
+		cross apply fn_AOC_2022_Day14_TrimSand(n.CurrentSand) ts
 	)
-select max(SandUnits) + 1 Answer2
+select max(CurrentSand) + 1 Answer2
 from rec
 option (maxrecursion 32767)
-*/
