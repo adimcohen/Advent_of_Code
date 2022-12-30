@@ -270,11 +270,6 @@ declare @Str varchar(max) =
 541,152 -> 546,152
 523,136 -> 523,138 -> 518,138 -> 518,145 -> 535,145 -> 535,138 -> 528,138 -> 528,136'
 
-
---set @Str =
---'498,4 -> 498,6 -> 496,6
---503,4 -> 502,4 -> 502,9 -> 494,9'
-
 drop table if exists #Numbers
 --Create a numbers table - never leave home without one
 ;with rec as
