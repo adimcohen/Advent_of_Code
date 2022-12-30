@@ -206,8 +206,6 @@ Blueprint 28: Each ore robot costs 4 ore. Each clay robot costs 3 ore. Each obsi
 Blueprint 29: Each ore robot costs 4 ore. Each clay robot costs 4 ore. Each obsidian robot costs 4 ore and 17 clay. Each geode robot costs 2 ore and 13 obsidian.
 Blueprint 30: Each ore robot costs 4 ore. Each clay robot costs 3 ore. Each obsidian robot costs 4 ore and 20 clay. Each geode robot costs 4 ore and 8 obsidian.'
 
-drop table if exists #rec
-
 ;with Lines as
 	(select row_number() over(order by (select 1)) ID, [value] Blueprint
 		from string_split(replace(@Str, char(13), ''), char(10))
@@ -260,7 +258,6 @@ create unique clustered index IX_AOC_2022_Day19_Blueprints on AOC_2022_Day19_Blu
 select sum(Quality) Answer1
 from Q
 
---Solution2
 ;with rec as
 	(select 0 ID, 32 Mnt, cast(null as varchar(max)) Scenarios
 	union all
@@ -278,11 +275,5 @@ from Q
 						) t
 		group by ID
 	)
---Caching results
-select *
-into #rec
+select max(iif(ID = 1, Geodes, null))*max(iif(ID = 2, Geodes, null))*max(iif(ID = 3, Geodes, null)) Answer2
 from Q
-
-select (select Geodes from #rec where ID = 1)
-	* (select Geodes from #rec where ID = 2)
-	* (select Geodes from #rec where ID = 3) Answer2
