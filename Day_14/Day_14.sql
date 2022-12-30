@@ -340,6 +340,6 @@ option (maxrecursion 32767)
 		cross apply fn_AOC_2022_Day14_RunCycle(r.CurrentSand, r.SandUnits, 100, Flr) n
 		cross apply fn_AOC_2022_Day14_TrimSand(n.CurrentSand) ts
 	)
-select max(CurrentSand) + 1 Answer2
+select max(SandUnits) + 1 Answer2
 from rec
 option (maxrecursion 32767)
