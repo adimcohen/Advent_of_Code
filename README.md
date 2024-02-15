@@ -1,4 +1,4 @@
-The idea is to solve the [Advent of Code 2022](https://adventofcode.com/2022) challenges using a single SQL Server T-SQL statement (no loops/cursors/variables), implementing lessons learned from giants, the likes of Itzik Ben-Gan.
+The idea is to solve the [Advent of Code](https://adventofcode.com) challenges using a single SQL Server T-SQL statement (no loops/cursors/variables), implementing lessons learned from giants, the likes of Itzik Ben-Gan.
 
 For optimization-sake, I'm allowing for the following exceptions that could be inlined as a sub-query/CTE but would most likely take forever for the optimizer to either extrapolate for a plan, or take too long to execute if no spooling takes place:
 1. Dumping the input and/or a step into a temp table
