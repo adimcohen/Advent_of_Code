@@ -1012,7 +1012,6 @@ from string_split(replace(@Input, char(10), ''), char(13), 1) r
 		from #Input i
 			inner join #Input i1 on i1.RowID = i.RowID
 								and i1.ColumnID = i.ColumnID + 1
-								--and abs(i1.ColVal - i.ColVal) between 1 and 3
 		where abs(i1.ColVal - i.ColVal) between 1 and 3
 		group by i.RowID, i.RowCnt
 		having count(*) = i.RowCnt - 1
