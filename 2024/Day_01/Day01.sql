@@ -1019,7 +1019,7 @@ from string_split(replace(@Input, char(10), ''), char(13))
 	(select r, row_number() over(order by r) rnk
 		from a
 	)
-select sum(abs(l - r)) Result1
+select sum(abs(l - r)) Answer1
 from lr
 	inner join rr on rr.rnk = lr.rnk
 
@@ -1036,7 +1036,7 @@ from lr
 	(select r num
 		from a
 	)
-select sum(num * cnt) Result2
+select sum(num * cnt) Answer2
 from ll
 	cross apply (select count(*) cnt
 					from rr

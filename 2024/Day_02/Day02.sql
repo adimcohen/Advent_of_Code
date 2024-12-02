@@ -1017,7 +1017,7 @@ from string_split(replace(@Input, char(10), ''), char(13), 1) r
 		having count(*) = i.RowCnt - 1
 			and min(i1.ColVal - i.ColVal) * max(i1.ColVal - i.ColVal) > 0
 	)
-select count(*) Result1
+select count(*) Answer1
 from a
 
 ;with Input as
@@ -1046,5 +1046,5 @@ from a
 		having count(*) = i.RowCnt - 1
 			and min(i1.ColVal - i.ColVal) * max(i1.ColVal - i.ColVal) > 0
 	)
-select count(*) Result2
+select count(*) Answer2
 from a
