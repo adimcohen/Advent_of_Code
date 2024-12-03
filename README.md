@@ -9,7 +9,6 @@ I want the code to be copy-paste-run.
 
 I know it's not all as efficient as can be, and would love to get feedback with optimizations to adimcohen@gmail.com.
 
-*LoL... just realized I've misspelled the repo's name. Oops. Hope the code is solid though.*
 
 # Experience Summary
 Solving the AoC puzzles using set-based T-SQL was an interesting experience.
