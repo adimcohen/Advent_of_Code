@@ -31,19 +31,20 @@ where ind1 > 0
 						) i1
 		where Val like '%do()%'
 			or Val like '%don''t()%'
+		union all
+		select 0, 1
 	)
-select sum(iif(Do1 = 1, cast(n1 as int) * cast(n2 as int), 0)) Answer2
+select sum(do * cast(n1 as int) * cast(n2 as int)) Answer2
 from #Input inp
 	cross apply (select charindex(')', Val, 1) ind1) i
 	cross apply (select left(Val, Ind1 - 1) Val1) v
 	cross apply (select charindex(',', Val1, 1) ind2) i1
 	cross apply (select left(Val1, ind2 - 1) n1, substring(Val1, ind2 + 1, 100) n2) i2
-	outer apply (select top 1 Do
+	cross apply (select top 1 Do
 					from dd
 					where dd.RowID < inp.RowID
 					order by dd.RowID desc
 				) d
-	cross apply (select isnull(Do, 1) Do1) d1
 where ind1 > 0
 	and ind2 > 0
 	and n1 not like '%[^0-9]%'
