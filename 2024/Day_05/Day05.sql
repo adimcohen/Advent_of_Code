@@ -1,24 +1,3 @@
-drop table if exists AOC_2024_05_Order
-create table AOC_2024_05_Order(X varchar(100), Y varchar(100))
-GO
-create or alter function fn_AOC_2024_05_Reorder(@Layout varchar(max)) returns table
-as
-return select cast((select RowID r, replace(trim(',' from iif(X is null, Val1, stuff(stuff(Val1, iy, len(Y), ''), ix + len(X) - 1, 0, Y + ','))), ',,', ',') v
-						from openjson(@Layout)
-							cross apply (select cast(json_value([value], '$.r') as int) RowID
-												, json_value([value], '$.v') Val
-										) p
-							cross apply (select replicate(',', 20) + Val + replicate(',', 20) Val1) v
-							outer apply (select top 1 *
-											from AOC_2024_05_Order
-												cross apply (select charindex(X, Val1, 1) ix, charindex(Y, Val1, 1) iy) i
-											where ix > iy
-												and iy > 0
-										) xy
-						order by r
-						for json path
-					) as varchar(max)) Layout
-GO
 declare @Input varchar(max) =
 '83|94
 97|41
@@ -1399,6 +1378,7 @@ declare @Input varchar(max) =
 41,27,97,89,94,47,93,19,81,16,77,75,74,25,12,67,83,69,23,78,37'
 
 drop table if exists #Updates
+drop table if exists #Orders
 drop table if exists #Results
 
 ;with i as
@@ -1406,8 +1386,8 @@ drop table if exists #Results
 		from string_split(replace(@Input, char(10), ''), char(13), 1) r
 			cross apply (select iif(r.[value] = '', r.ordinal, 0) Mid) m
 	)
-insert into AOC_2024_05_Order
 select ParseName(v1, 2) X, ParseName(v1, 1) Y
+into #Orders
 from i
 	cross apply (select replace(Val, '|', '.') v1) v
 where RowID < Mid
@@ -1428,7 +1408,7 @@ where RowID > Mid
 			cross apply string_split(Val, ',', 1)
 		where RowID not in (select RowID
 							from #Updates u
-								cross join AOC_2024_05_Order
+								cross join #Orders
 								cross apply (select charindex(',' + X + ',', ',' + Val + ',', 1) xi
 													, charindex(',' + Y + ',', ',' + Val + ',', 1) yi
 												) i
@@ -1436,48 +1416,61 @@ where RowID > Mid
 								and yi > 0
 							)
 	)
-select sum(cast([value] as int))
+select sum(cast([value] as int)) Answer1
 from i
 where rn1 = rn2
 option (maxrecursion 32767)
 
 ;with i as
-	(select cast((select distinct RowID r, Val v
-				from #Updates u
-					cross join AOC_2024_05_Order
-					cross apply (select charindex(',' + X + ',', ',' + Val + ',', 1) xi
-										, charindex(',' + Y + ',', ',' + Val + ',', 1) yi
-									) i
-				where xi > yi
-					and yi > 0
-				order by RowID
-				for json path
-				) as varchar(max)) Layout, 0 lvl
+	(select distinct RowID, Val Orig, cast(',' as varchar(max)) Trgt
+		from #Updates u
+			cross join #Orders
+			cross apply (select charindex(',' + X + ',', ',' + Val + ',', 1) xi
+								, charindex(',' + Y + ',', ',' + Val + ',', 1) yi
+							) i
+		where xi > yi
+			and yi > 0
 	)
 	, rec as
-	(select Layout, lvl
+	(select RowID, Orig, Trgt, 0 lvl
 		from i
 		union all
-		select o.Layout, lvl + 1 lvl
-		from rec r
-			cross apply fn_AOC_2024_05_Reorder(Layout) o
-		where o.Layout != r.Layout
+		select RowID, cast(NewOrig as varchar(max)), cast(Trgt + NewNums + ',' as varchar(max)) Trgt, lvl + 1
+		from rec
+			cross apply (select replace(replace((select [value] v
+										from openjson('[' + Orig + ']')
+										where not exists (select *
+															from #Orders
+															where Y = [value]
+																and ',' + Orig + ',' like '%,' + X + ',%'
+														)
+										and [value] not in (select t.[value]
+															from openjson('[' + trim(',' from Trgt) + ']') t
+															)
+										for json path, without_array_wrapper
+									), '{"v":"', ''), '"}', '') NewNums
+							) j
+			cross apply (select replace(replace((select [value] v
+										from openjson('[' + Orig + ']')
+										where [value] not in (select t.[value]
+																from openjson('[' + trim(',' from NewNums) + ']') t
+																)
+										for json path, without_array_wrapper
+									), '{"v":"', ''), '"}', '') NewOrig
+						) o
+		where Orig is not null
 	)
-select top 1 *
+select RowID, trim(',' from Trgt) Val
 into #Results
 from rec
-order by lvl desc
+where Orig is null
 option (maxrecursion 32767)
 
 ;with i as
-	(select s.[value], row_number() over(partition by RowID order by ordinal) rn1, row_number() over(partition by RowID order by ordinal desc) rn2
+	(select [value], row_number() over(partition by RowID order by ordinal) rn1, row_number() over(partition by RowID order by ordinal desc) rn2
 		from #Results
-			cross apply openjson(Layout)
-			cross apply (select cast(json_value([value], '$.r') as int) RowID
-								, json_value([value], '$.v') Val
-						) p
 			cross apply string_split(Val, ',', 1) s
 	)
-select sum(cast([value] as int))
+select sum(cast([value] as int)) Answer2
 from i
 where rn1 = rn2
