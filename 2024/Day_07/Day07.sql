@@ -883,7 +883,6 @@ drop table if exists #Input
 drop table if exists #Operators
 drop table if exists #Part1
 drop table if exists #Operators2
-drop table if exists #MultOptions
 drop table if exists #Part2
 
 select ordinal RowID, Val, Nums, len(Nums) - len(replace(Nums, ',', '')) OpCount
@@ -955,15 +954,8 @@ from rec
 where op like '%|%'
 	and Step = (select MaxOpCount from i)
 	
-select distinct a.[value] v, cast(a.[value]*b.[value]%10 as char(1)) LastDigit
-into #MultOptions
-from generate_series(0, 9) a
-	cross apply generate_series(0, 9) b
-
-truncate table ##Part2
-insert into ##Part2
-select RowID, Val, op
---into #Part2
+select RowID, Val, op, Nums
+into #Part2
 from #Input i
 	cross apply (select top 1 cast([value] as varchar(100)) LastNumber
 					from openjson(Nums)
@@ -974,15 +966,6 @@ from #Input i
 								from (select distinct left(op, OpCount) op
 										from #Operators2
 										) o
-								--	cross apply (select right(op, 1) LastOp) o1
-								--where LastOp = '+'
-								--	or (LastOp = '|' and Val like '%' + LastNumber)
-								--	or (LastOp = '*' and exists (select *
-								--									from #MultOptions
-								--									where v = right(LastNumber, 1)
-								--										and LastDigit = right(Val, 1)
-								--								)
-								--		)
 							) s
 					where exists
 						(select *
@@ -992,11 +975,11 @@ from #Input i
 where RowID not in (select p.RowID
 					from #Part1 p
 					)
-
+	
 select (select sum(Val)
 		from #Part1
 		)
 		+
 		(select sum(Val)
-		from ##Part2
+		from #Part2
 		) Answer2
