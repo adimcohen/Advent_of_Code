@@ -499,8 +499,6 @@ p=4,80 v=94,45
 p=19,66 v=-3,-84
 p=71,23 v=59,33
 p=41,42 v=92,-47'
-	, @MaxX int = 101
-	, @MaxY int = 103
 drop table if exists #Input
 
 select ordinal RobotID
