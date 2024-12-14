@@ -548,4 +548,4 @@ from Totals
 select top 1 Seconds Answer2
 from i
 group by Seconds
-order by sum(cnt) desc, min(XDiff), max(XDiff)
+order by sum(cnt) desc, min(XDiff), max(XDiff), Seconds
