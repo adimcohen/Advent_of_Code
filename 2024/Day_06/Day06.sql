@@ -1,5 +1,6 @@
 drop table if exists AOC_2024_Day06_Map
 drop table if exists AOC_2024_Day06_Rel
+drop table if exists AOC_2024_Day06_AltRel
 
 create table AOC_2024_Day06_Map(ID int,
 								X int,
@@ -13,6 +14,60 @@ create table AOC_2024_Day06_Rel(FromID int,
 								Symbol char(1),
 								Dir char(1)
 								)
+
+create unique clustered index IX_AOC_2024_Day06_Rel on AOC_2024_Day06_Rel(FromID, Dir)
+
+create table AOC_2024_Day06_AltRel(FromID int,
+									ToID int,
+									ObsID int,
+									Dir char(1)
+									)
+create unique clustered index IX_AOC_2024_Day06_AltRel on AOC_2024_Day06_AltRel(ObsID, FromID, Dir)
+GO
+create or alter function fn_AOC_2024_Day06_CheckLoop(@ObsID int) returns table
+as
+return with rec as
+			(select ID, X, Y, cast(concat(',', ID, '.', '^', ',') as varchar(max)) Rt, 0 Steps, 0 IsLoop, '^' Dir
+					, 0 src
+				from AOC_2024_Day06_Map
+				where Symbol = '^'
+				union all
+				select n.ToID, m.X, m.Y, cast(concat(r.Rt, Rt1, ',') as varchar(max)) Rt, r.Steps + 1 Steps, n2.IsLoop, n.Dir
+					, case when l.ToID is not null then 1
+							when l1.ToID is not null then 2
+						end src
+				from rec r
+					outer apply (select *
+									from AOC_2024_Day06_AltRel l1
+									where l1.FromID = r.ID
+										and l1.Dir = r.Dir
+										and l1.ObsID = @ObsID
+								) l1
+					outer apply (select *
+									from AOC_2024_Day06_Rel l
+									where l.FromID = r.ID
+										and l.Dir = r.Dir
+										and l1.ToID is null
+								) l
+					cross apply (select coalesce(l1.ToID, l.ToID) ToID
+										, case r.Dir
+												when '^' then '>'
+												when '>' then 'v'
+												when 'v' then '<'
+												when '<' then '^'
+											end Dir
+								) n
+					inner join AOC_2024_Day06_Map m on m.ID = n.ToID
+					cross apply (select concat(m.ID, '.', n.Dir) Rt1) n1
+					cross apply (select iif(r.Rt like concat('%,', Rt1, ',%'), 1, 0) IsLoop) n2
+				where r.IsLoop = 0
+					and m.Symbol in ('.', '^')
+			)
+		select top 1 IsLoop
+		from rec
+		--where IsLoop = 1
+		order by Steps desc
+GO
 declare @Input varchar(max) =
 '........#........................................#......#........#................................................................
 ....................................#......#.....#............#.............#..........#..........................................
@@ -147,6 +202,7 @@ declare @Input varchar(max) =
 
 drop table if exists #Route
 drop table if exists #Obstacles
+drop table if exists #Obstacles1
 
 ;with i as
 	(select c.[value] X, r.ordinal Y, substring(r.[value], c.[value], 1) Symbol, len(r.[value]) MaxX, count(*) over(partition by r.ordinal) MaxY
@@ -183,9 +239,16 @@ from i1
 create unique clustered index IX_AOC_2024_Day06_Map on AOC_2024_Day06_Map(ID)
 create unique index IX_AOC_2024_Day06_Map_1 on AOC_2024_Day06_Map(X, Y) include(Symbol)
 
+;with Obstacles as
+	(select *
+		from AOC_2024_Day06_Map o
+		where o.Symbol = '#'
+	)
 insert into AOC_2024_Day06_Rel
 select m.ID fID, l1.ID tID, Rt, l.Symbol, '>' Dir
-from AOC_2024_Day06_Map m
+from Obstacles o
+	inner join AOC_2024_Day06_Map m on o.X = m.X
+									and o.Y = m.Y - 1
 	cross apply (select top 1 o.X - 1 X, o.Y, o.Symbol, o.ID
 					from AOC_2024_Day06_Map o
 					where o.Symbol in ('#', '')
@@ -201,22 +264,11 @@ from AOC_2024_Day06_Map m
 						) Rt
 				) p1
 where m.Symbol not in ('#', '')
-	and exists (select *
-				from AOC_2024_Day06_Map o
-				where o.Symbol  = '#'
-					and o.X = m.X
-						and o.Y = m.Y - 1
-					)
-	and not exists (select *
-					from AOC_2024_Day06_Map o
-					where o.Symbol in ('#', '')
-						and o.X = m.X
-							and o.Y = m.Y + 1
-						)
-	and not (m.X = l.X and m.Y = l.Y)
 union all
 select  m.ID fID, l1.ID tID, Rt, l.Symbol, '<' Dir
-from AOC_2024_Day06_Map m
+from Obstacles o
+	inner join AOC_2024_Day06_Map m on o.X = m.X
+								and o.Y = m.Y + 1
 	cross apply (select top 1 o.X + 1 X, o.Y, o.Symbol, o.ID
 					from AOC_2024_Day06_Map o
 					where o.Symbol in ('#', '')
@@ -232,22 +284,11 @@ from AOC_2024_Day06_Map m
 						) Rt
 				) p1
 where m.Symbol not in ('#', '')
-	and exists (select *
-				from AOC_2024_Day06_Map o
-				where o.Symbol = '#'
-					and o.X = m.X
-						and o.Y = m.Y + 1
-					)
-	and not exists (select *
-					from AOC_2024_Day06_Map o
-					where o.Symbol in ('#', '')
-						and o.X = m.X
-							and o.Y = m.Y - 1
-						)
-	and not (m.X = l.X and m.Y = l.Y)
 union all
 select  m.ID fID, l1.ID tID, Rt, l.Symbol, 'v' Dir
-from AOC_2024_Day06_Map m
+from Obstacles o
+	inner join AOC_2024_Day06_Map m on o.X = m.X + 1
+									and o.Y = m.Y
 	cross apply (select top 1 o.X, o.Y - 1 Y, o.Symbol, o.ID
 					from AOC_2024_Day06_Map o
 					where o.Symbol in ('#', '')
@@ -263,22 +304,11 @@ from AOC_2024_Day06_Map m
 						) Rt
 				) p1
 where m.Symbol not in ('#', '')
-	and exists (select *
-				from AOC_2024_Day06_Map o
-				where o.Symbol = '#'
-					and o.X = m.X + 1
-						and o.Y = m.Y
-					)
-	and not exists (select *
-					from AOC_2024_Day06_Map o
-					where o.Symbol in ('#', '')
-						and o.X = m.X - 1
-							and o.Y = m.Y
-						)
-	and not (m.X = l.X and m.Y = l.Y)
 union all
 select  m.ID fID, l1.ID tID, Rt, l.Symbol, '^' Dir
-from AOC_2024_Day06_Map m
+from Obstacles o
+	inner join AOC_2024_Day06_Map m on o.X = m.X - 1
+								and o.Y = m.Y
 	cross apply (select top 1 o.X, o.Y + 1 Y, o.Symbol, o.ID
 					from AOC_2024_Day06_Map o
 					where o.Symbol in ('#', '')
@@ -294,19 +324,6 @@ from AOC_2024_Day06_Map m
 						) Rt
 				) p1
 where m.Symbol not in ('#', '')
-	and exists (select *
-				from AOC_2024_Day06_Map o
-				where o.Symbol = '#'
-					and o.X = m.X - 1
-						and o.Y = m.Y
-					)
-	and not exists (select *
-					from AOC_2024_Day06_Map o
-					where o.Symbol in ('#', '')
-						and o.X = m.X + 1
-							and o.Y = m.Y
-						)
-	and not (m.X = l.X and m.Y = l.Y)
 union all
 select m.ID FromID, l1.ID ToID, Rt, m.Symbol, '^'
 from AOC_2024_Day06_Map m
@@ -325,10 +342,10 @@ from AOC_2024_Day06_Map m
 				) p1
 where m.Symbol = '^'
 
-create unique clustered index IX_AOC_2024_Day06_Rel on AOC_2024_Day06_Rel(FromID)
+alter index all on AOC_2024_Day06_Rel rebuild
 
 ;with sp as
-	(select r.FromID, r.ToID, m.X, m.Y, r.Rt, m1.Symbol
+	(select r.FromID, r.ToID, m.X, m.Y, r.Rt, m1.Symbol, '^' Dir
 		from AOC_2024_Day06_Rel r
 			inner join AOC_2024_Day06_Map m on m.ID = r.ToID
 			inner join AOC_2024_Day06_Map m1 on m1.X = m.X
@@ -336,13 +353,28 @@ create unique clustered index IX_AOC_2024_Day06_Rel on AOC_2024_Day06_Rel(FromID
 		where r.Symbol = '^'
 	)
 	, rec as
-	(select FromID, ToID, X, Y, RT, cast(RT as varchar(max)) PartialRt, Symbol, 1 Steps
-		from sp
+	(select FromID, ToID, X, Y, RT, cast(RT as varchar(max)) PartialRt, Symbol, 1 Steps, n.Dir
+		from sp r
+			cross apply (select case r.Dir
+							when '^' then '>'
+							when '>' then 'v'
+							when 'v' then '<'
+							when '<' then '^'
+						end Dir
+				) n
 		union all
-		select r.ToID, l.ToID, m.X, m.Y, r.RT + ',' + l.Rt, l.Rt PartialRt, l.Symbol, r.Steps + 1 Steps
+		select r.ToID, l.ToID, m.X, m.Y, r.RT + ',' + l.Rt, l.Rt PartialRt, l.Symbol, r.Steps + 1 Steps, n.Dir
 		from rec r
 			inner join AOC_2024_Day06_Rel l on l.FromID = r.ToID
+											and l.Dir = r.Dir
 			inner join AOC_2024_Day06_Map m on m.ID = l.ToID
+			cross apply (select case r.Dir
+									when '^' then '>'
+									when '>' then 'v'
+									when 'v' then '<'
+									when '<' then '^'
+								end Dir
+						) n
 		where r.Symbol != ''
 	)
 select *
@@ -359,3 +391,196 @@ option (maxrecursion 32767)
 select count(distinct json_value([value], '$.p')) Answer1
 from #Route
 	cross apply openjson('[' + Rt + ']')
+
+;with Obstacles as
+	(select distinct i2.X, i2.Y, NewObs.ID ObsID
+		from #Route
+			cross apply openjson('[' + PartialRt + ']') j
+			cross apply (select json_value(j.[value], '$.p') p) i1
+			cross apply (select cast(parsename(p, 2) as int) X, cast(parsename(p, 1) as int) Y) i2
+			inner join AOC_2024_Day06_Map NewObs on NewObs.X = i2.X
+												and NewObs.Y = i2.Y
+		where NewObs.Symbol = '.'
+	)
+select *, row_number() over(order by ObsID) ID
+into #Obstacles
+from Obstacles
+
+select o.ObsID, ToDir, FromDir, NearCell.*
+into #Obstacles1
+from #Obstacles o
+	cross join (values('^', '>')
+					, ('v', '<')
+					, ('<', '^')
+					, ('>', 'v')
+				) d(ToDir, FromDir)
+	cross apply (select o.X + case ToDir
+								when '>' then -1
+								when '<' then 1
+								else 0
+							end X,
+						o.Y + case ToDir
+									when 'v' then -1
+									when '^' then 1
+									else 0
+								end Y
+		) i
+	inner join AOC_2024_Day06_Map NearCell on NearCell.X = i.X
+											and NearCell.Y = i.Y
+where NearCell.Symbol in ('.', '^')
+
+truncate table AOC_2024_Day06_AltRel
+;with NewTo as
+	(select m.ID FromID, o.ID ToID, ObsID, ToDir dir
+		from #Obstacles1 o
+			cross apply (select top 1 m.X, m.Y
+							from AOC_2024_Day06_Map m
+							where m.X = o.X
+								and m.Y > o.Y
+								and m.Symbol in ('', '#')
+							order by m.Y
+						) po
+			cross apply (select m.ID, m.X, m.Y
+							from AOC_2024_Day06_Map m
+								inner join AOC_2024_Day06_Rel r on r.FromID = m.ID
+																and r.Dir = o.ToDir
+							where m.X = o.X
+								and m.Y >= o.Y
+								and m.Y < po.Y
+						) m
+		where ToDir = '^'
+		union all
+		select m.ID FromID, o.ID ToID, ObsID, ToDir dir
+		from #Obstacles1 o
+			cross apply (select top 1 m.X, m.Y
+							from AOC_2024_Day06_Map m
+							where m.X = o.X
+								and m.Y < o.Y
+								and m.Symbol in ('', '#')
+							order by m.Y desc
+						) po
+			cross apply (select m.ID, m.X, m.Y
+							from AOC_2024_Day06_Map m
+								inner join AOC_2024_Day06_Rel r on r.FromID = m.ID
+																and r.Dir = o.ToDir
+							where m.X = o.X
+								and m.Y <= o.Y
+								and m.Y > po.Y
+						) m
+		where ToDir = 'v'
+		union all
+		select m.ID FromID, o.ID ToID, ObsID, ToDir dir
+		from #Obstacles1 o
+			cross apply (select top 1 m.X, m.Y
+							from AOC_2024_Day06_Map m
+							where m.X > o.X
+								and m.Y = o.Y
+								and m.Symbol in ('', '#')
+							order by m.X
+						) po
+			cross apply (select m.ID, m.X, m.Y
+							from AOC_2024_Day06_Map m
+								inner join AOC_2024_Day06_Rel r on r.FromID = m.ID
+																and r.Dir = o.ToDir
+							where m.X >= o.X
+								and m.Y = o.Y
+								and m.X < po.X
+						) m
+		where ToDir = '<'
+		union all
+		select m.ID FromID, o.ID ToID, ObsID, ToDir dir
+		from #Obstacles1 o
+			cross apply (select top 1 m.X, m.Y
+							from AOC_2024_Day06_Map m
+							where m.X < o.X
+								and m.Y = o.Y
+								and m.Symbol in ('', '#')
+							order by m.X desc
+						) po
+			cross apply (select m.ID, m.X, m.Y
+							from AOC_2024_Day06_Map m
+								inner join AOC_2024_Day06_Rel r on r.FromID = m.ID
+																and r.Dir = o.ToDir
+							where m.X <= o.X
+								and m.Y = o.Y
+								and m.X > po.X
+						) m
+		where ToDir = '>'
+	)
+	, NewFrom as
+	(select o.ID FromID, l1.ID ToID, o.ObsID, FromDir Dir
+		from #Obstacles1 o
+			cross apply (select top 1 o1.X - 1 X, o1.Y, o1.Symbol, o1.ID
+							from AOC_2024_Day06_Map o1
+							where o1.Symbol in ('#', '')
+								and o1.Y = o.Y
+								and o1.X > o.X
+							order by o1.X
+						) l
+			inner join AOC_2024_Day06_Map l1 on l1.X = l.X
+								and l1.Y = l.Y
+		where FromDir = '>'
+		union all
+		select o.ID fID, l1.ID tID, o.ObsID, FromDir Dir
+		from #Obstacles1 o
+			cross apply (select top 1 o1.X + 1 X, o1.Y, o1.Symbol, o1.ID
+							from AOC_2024_Day06_Map o1
+							where o1.Symbol in ('#', '')
+								and o1.Y = o.Y
+								and o1.X < o.X
+							order by o1.X desc
+						) l
+			inner join AOC_2024_Day06_Map l1 on l1.X = l.X
+								and l1.Y = l.Y
+		where FromDir = '<'
+		union all
+		select  o.ID fID, l1.ID tID, o.ObsID, FromDir Dir
+		from #Obstacles1 o
+			cross apply (select top 1 o1.X, o1.Y - 1 Y, o1.Symbol, o1.ID
+							from AOC_2024_Day06_Map o1
+							where o1.Symbol in ('#', '')
+								and o1.Y > o.Y
+								and o1.X = o.X
+							order by o1.Y
+						) l
+			inner join AOC_2024_Day06_Map l1 on l1.X = l.X
+								and l1.Y = l.Y
+		where FromDir = 'v'
+		union all
+		select  o.ID fID, l1.ID tID, o.ObsID, FromDir Dir
+		from #Obstacles1 o
+			cross apply (select top 1 o1.X, o1.Y + 1 Y, o1.Symbol, o1.ID
+							from AOC_2024_Day06_Map o1
+							where o1.Symbol in ('#', '')
+								and o1.Y < o.Y
+								and o1.X = o.X
+							order by o1.Y desc
+						) l
+			inner join AOC_2024_Day06_Map l1 on l1.X = l.X
+								and l1.Y = l.Y
+		where FromDir = '^'
+	)
+insert into AOC_2024_Day06_AltRel
+select FromID, ToID, ObsID, Dir
+from NewTo
+union
+select FromID, ToID, ObsID, Dir
+from NewFrom
+
+alter index all on AOC_2024_Day06_AltRel rebuild
+
+;with rec as
+	(select 0 ID, cast(0 as int) IsLoop
+		union all
+		select n.ID, l.IsLoop
+		from rec
+			cross apply (select ID + 1 ID) n
+			inner join #Obstacles o on o.ID = n.ID
+			cross apply fn_AOC_2024_Day06_CheckLoop(o.ObsID) l
+	)
+select count(*) Answer2
+from rec r
+	inner join #Obstacles o on o.ID = r.ID
+	inner join AOC_2024_Day06_Map m on m.ID = o.ObsID
+where IsLoop = 1
+option (maxrecursion 32767)
