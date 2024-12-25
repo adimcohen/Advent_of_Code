@@ -193,6 +193,11 @@ from #Routes
 	cross apply string_split(Rt, ',', 1)
 	cross apply (select cast(parsename([value], 2) as int) r, cast(parsename([value], 1) as int) c) p
 where LastVal = 'E'
+union all
+select TotalSteps, r, c, 0
+from AOC_2024_Day21_Map
+	inner join #Routes on LastVal = 'E'
+where Val = 'S'
 
 create unique clustered index IX_#Steps on #Steps(r, c)
 
@@ -204,3 +209,12 @@ from #Steps a
 where Diff >= 100
 	and a.Dist < b.Dist - Cheat
 	and Cheat = 2
+
+select count(*) Answer2
+from #Steps a
+	inner join #Steps b on a.Dist < b.Dist
+	cross apply (select abs(b.c - a.c) + abs(b.r - a.r) Cheat) c
+	cross apply (select b.Dist - a.Dist - Cheat Diff) d
+where Diff >= 100
+	and a.Dist < b.Dist - Cheat
+	and Cheat <= 20
