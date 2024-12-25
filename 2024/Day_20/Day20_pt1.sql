@@ -196,49 +196,11 @@ where LastVal = 'E'
 
 create unique clustered index IX_#Steps on #Steps(r, c)
 
-;with Shortcuts as
-	(
-	select a.r r1, a.c c1, a.Dist d1, b.r r2, b.c c2, b.Dist d2, a.TotalSteps
-		from #Steps a
-			inner join #Steps b on a.Dist < b.Dist
-								and b.c = a.c and b.r = a.r - 2
-		where not exists (select *
-							from AOC_2024_Day21_Map m
-							where m.c = a.c
-								and m.r = a.r - 1
-						)
-		union all
-		select a.r r1, a.c c1, a.Dist d1, b.r r2, b.c c2, b.Dist d2, a.TotalSteps
-		from #Steps a
-			inner join #Steps b on a.Dist < b.Dist
-								and b.c = a.c and b.r = a.r + 2
-		where not exists (select *
-							from AOC_2024_Day21_Map m
-							where m.c = a.c
-								and m.r = a.r + 1
-						)
-		union all
-		select a.r r1, a.c c1, a.Dist d1, b.r r2, b.c c2, b.Dist d2, a.TotalSteps
-		from #Steps a
-			inner join #Steps b on a.Dist < b.Dist
-								and b.r = a.r and b.c = a.c - 2
-		where not exists (select *
-							from AOC_2024_Day21_Map m
-							where m.r = a.r
-								and m.c = a.c - 1
-						)
-		union all
-		select a.r r1, a.c c1, a.Dist d1, b.r r2, b.c c2, b.Dist d2, a.TotalSteps
-		from #Steps a
-			inner join #Steps b on a.Dist < b.Dist
-								and b.r = a.r and b.c = a.c + 2
-		where not exists (select *
-							from AOC_2024_Day21_Map m
-							where m.r = a.r
-								and m.c = a.c + 1
-						)
-	)
 select count(*) Answer1
-from Shortcuts
-	cross apply (select d2 - d1 - 2 Diff) d
+from #Steps a
+	inner join #Steps b on a.Dist < b.Dist
+	cross apply (select abs(b.c - a.c) + abs(b.r - a.r) Cheat) c
+	cross apply (select b.Dist - a.Dist - Cheat Diff) d
 where Diff >= 100
+	and a.Dist < b.Dist - Cheat
+	and Cheat = 2
