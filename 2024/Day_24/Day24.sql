@@ -408,12 +408,7 @@ option (maxrecursion 32767)
 	(select string_agg(v3, '') within group (order by Wire3 desc) Bin
 		from #rec
 			cross apply openjson(Stat)
-			cross apply (select json_value([value], '$.w1') Wire1
-							, json_value([value], '$.w2') Wire2
-							, json_value([value], '$.w3') Wire3
-							, json_value([value], '$.o') Op
-							, cast(json_value([value], '$.v1') as int) v1
-							, cast(json_value([value], '$.v2') as int) v2
+			cross apply (select json_value([value], '$.w3') Wire3
 							, cast(json_value([value], '$.v3') as int) v3
 						) p
 		where Wire3 like 'z%'
@@ -421,3 +416,37 @@ option (maxrecursion 32767)
 select sum(cast(substring(Bin, len(Bin) - [value], 1) as bigint) * power(cast(2 as bigint), [value])) Answer1
 from i
 	cross apply generate_series(cast(len(Bin) as int) - 1, cast(0 as int), cast(-1 as int))
+
+;with i as
+	(select *, max(iif(Wire3 like 'z%', Wire3, null)) over() MaxZ
+		from #Gates
+	)
+select string_agg(Wire3, ',') within group (order by Wire3)
+from i
+where (Wire3 like 'z%'
+		and Wire3 != MaxZ
+		and Op != 'XOR'
+	)
+	or
+	(Op = 'XOR'
+		and left(Wire1, 1) not in ('X', 'Y', 'Z')
+		and left(Wire2, 1) not in ('X', 'Y', 'Z')
+		and left(Wire3, 1) not in ('X', 'Y', 'Z')
+	)
+	or
+	(Op = 'AND'
+		and 'x00' not in (Wire1, Wire2)
+		and exists (select *
+					from #Gates g1
+					where g1.Op != 'OR'
+						and i.Wire3 in (g1.Wire1, g1.Wire2)
+					)
+	)
+	or
+	(Op = 'XOR'
+		and exists (select *
+					from #Gates g1
+					where g1.Op = 'OR'
+						and i.Wire3 in (g1.Wire1, g1.Wire2)
+					)
+	)
