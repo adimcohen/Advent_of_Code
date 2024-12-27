@@ -11,7 +11,13 @@ create or alter function fn_AOC_2024_Day21_Step(@KeypadID int,
 													@ToKey char(1)
 												) returns table
 as
-return select case when cDiff > 0 and Exist is not null 
+return select case when cDiff > 0
+							and exists (select *
+											from AOC_2024_Day21_Keypads p 
+											where KeypadID = @KeypadID
+												and p.r = t.r
+												and p.c = f.c
+										)
 						then v+h
 					when exists (select *
 									from AOC_2024_Day21_Keypads p 
@@ -20,8 +26,7 @@ return select case when cDiff > 0 and Exist is not null
 										and p.c = t.c
 									)
 						then h+v
-					when Exist is not null
-						then v+h
+					else v+h
 				end Keys
 		from AOC_2024_Day21_Keypads f
 			inner join AOC_2024_Day21_Keypads t on t.KeypadID = f.KeypadID
@@ -30,12 +35,6 @@ return select case when cDiff > 0 and Exist is not null
 			cross apply (select concat(replicate('v', rDiff), replicate('^', -rDiff)) v
 								, concat(replicate('>', cDiff), replicate('<', -cDiff)) h
 						) hz
-			outer apply (select 1 Exist
-							from AOC_2024_Day21_Keypads p 
-							where KeypadID = @KeypadID
-								and p.r = t.r
-								and p.c = f.c
-							) e
 		where f.KeypadID = @KeypadID
 			and f.K = @FromKey
 GO
