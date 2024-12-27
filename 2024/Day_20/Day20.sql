@@ -178,7 +178,7 @@ from AOC_2024_Day21_Map a
 alter index all on AOC_2024_Day21_Edges rebuild
 
 select last_value(i1.Val) within group (graph path) LastVal,
-	string_agg(cast(concat(i1.r, '.', i1.c) as varchar(max)), ',') within group (graph path) Rt,
+	concat(i.r, '.', i.c, ',', string_agg(cast(concat(i1.r, '.', i1.c) as varchar(max)), ',') within group (graph path)) Rt,
 	len(string_agg(cast(isnull(nullif(i1.r, i1.r), '1') as varchar(max)), '') within group (graph path)) TotalSteps
 into #Routes
 from AOC_2024_Day21_Map i,
@@ -187,17 +187,12 @@ from AOC_2024_Day21_Map i,
 where MATCH(shortest_path(i(-(e)->i1)+))
 	and i.Val = 'S'
 
-select TotalSteps, r, c, ordinal Dist
+select TotalSteps, r, c, ordinal - 1 Dist
 into #Steps
 from #Routes
 	cross apply string_split(Rt, ',', 1)
 	cross apply (select cast(parsename([value], 2) as int) r, cast(parsename([value], 1) as int) c) p
 where LastVal = 'E'
-union all
-select TotalSteps, r, c, 0
-from AOC_2024_Day21_Map
-	inner join #Routes on LastVal = 'E'
-where Val = 'S'
 
 create unique clustered index IX_#Steps on #Steps(r, c)
 
