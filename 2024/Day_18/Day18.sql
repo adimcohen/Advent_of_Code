@@ -1,3 +1,59 @@
+drop table if exists AOC_2024_Day18_Bytes
+create table AOC_2024_Day18_Bytes(ID int,
+									X int,
+									Y int
+									)
+create unique clustered index IX_AOC_2024_Day18_Bytes on AOC_2024_Day18_Bytes(X, Y, ID)
+GO
+create or alter function fn_AOC_2024_Day18_Step(@Routes varchar(max)
+												, @MaxX int
+												, @MaxY int
+												, @MaxByteID int
+												, @Sort bit
+												) returns table
+as
+return with NewRoutes as
+			(select isnull(m.X, r.X) X, isnull(m.Y, r.Y) Y, iif(IsActiveRoute = 1, concat(r.Rt, Rt1, ','), r.Rt) Rt, IsActiveRoute
+				from openjson(@Routes)
+					cross apply (select cast(json_value([value], '$.x') as int) X
+									, cast(json_value([value], '$.y') as int) Y
+									, json_value([value], '$.r') Rt
+								) r
+					cross apply (select iif(r.X = @MaxX and r.Y = @MaxY, 0, 1) IsActiveRoute) i
+					outer apply (select *
+									from (values(r.X, r.Y + 1)
+												, (r.X, r.Y - 1)
+												, (r.X + 1, r.Y)
+												, (r.X - 1, r.Y)
+											) m(X, Y)
+											cross apply (select concat(m.X, '.', m.Y) Rt1
+															where m.X between 0 and @MaxX
+																and m.Y between 0 and @MaxY
+																and not exists (select *
+																				from AOC_2024_Day18_Bytes b
+																				where b.X = m.X
+																					and b.Y = m.Y
+																					and b.ID <= @MaxByteID
+																				)
+														) n
+									where IsActiveRoute = 1
+								) m
+				where IsActiveRoute = 0
+					or Rt not like '%,' + Rt1 + ',%'
+			)
+			, UniqueRoutes as
+			(select distinct X, Y, isnull(SortedRt, Rt) Rt, IsActiveRoute
+				from NewRoutes
+					outer apply (select ',' + string_agg(cast([value] as varchar(max)), ',') within group (order by [value]) + ',' SortedRt
+									from string_split(Rt, ',')
+									where [value] != ''
+										and IsActiveRoute = 1
+										and @Sort = 1
+								) s
+			)
+			select '[' + string_agg(cast(concat('{"x":', X, ',"y":', Y, ',"r":"', Rt, '"}') as varchar(max)), ',') + ']' Rts, max(IsActiveRoute) HasActiveRoutes
+			from UniqueRoutes
+GO
 declare @Input varchar(max) =
 '37,6
 59,27
@@ -3465,12 +3521,13 @@ create table AOC_2024_Day18_Edges as edge
 create unique clustered index IX_AOC_2024_Day18_Edges on AOC_2024_Day18_Edges($from_id, $to_id)
 
 drop table if exists #Maze
-drop table if exists #Input
 
+insert into AOC_2024_Day18_Bytes
 select ordinal ID, cast(parsename(rw, 2) as int) X, cast(parsename(rw, 1) as int) Y
-into #Input
 from string_split(replace(@Input, char(10), ''), char(13), 1) r
 	cross apply (select replace([value], ',', '.') rw) i
+
+alter index all on AOC_2024_Day18_Bytes rebuild
 
 select c.[value] X, r.[value] Y
 into #Maze
@@ -3483,7 +3540,7 @@ declare @MaxID int = 1024
 		from #Maze
 		except
 		select X, Y
-		from #Input
+		from AOC_2024_Day18_Bytes
 		where ID <= @MaxID
 	)
 insert into AOC_2024_Day18_Map
@@ -3514,49 +3571,32 @@ from r
 where LastX = MaxX
 	and LastY = MaxY
 
-truncate table AOC_2024_Day18_Map
-truncate table AOC_2024_Day18_Edges
-set @MaxID = 2862 --I know it's lazy, but trial and error gets it done the fastest :)
-;with m as
-	(select X, Y
-		from #Maze
-		except
-		select X, Y
-		from #Input
-		where ID <= @MaxID
+;with rec as
+	(select cast((select 0 x, 0 y, concat(',', 0, '.', 0, ',') r
+					from (select 1 a) t
+					for json path) as varchar(max)) Rts, 0 Steps, 1 HasActiveRoutes
+		union all
+		select n.Rts, Steps + 1, n.HasActiveRoutes
+		from rec r
+			cross apply fn_AOC_2024_Day18_Step(r.Rts, 70, 70, 2500, iif(r.Steps%5 = 0, 1, 0)) n --Starting with 1024 just takes forever, so starting with 2500 byte drops to show the method
+		where r.HasActiveRoutes = 1
 	)
-insert into AOC_2024_Day18_Map
-select X, Y, max(X) over(), max(Y) over()
-from m
-
-insert into AOC_2024_Day18_Edges
-select a.$node_id, b.$node_id
-from AOC_2024_Day18_Map a
-	inner join AOC_2024_Day18_Map b on (b.Y = a.Y and b.X in (a.X - 1, a.X + 1))
-									or (b.X = a.X and b.Y in (a.Y - 1, a.Y + 1))
-
-;with r as
-	(select i.X, i.Y, i.MaxX, i.MaxY,
-			last_value(i1.X) within group (graph path) LastX,
-			last_value(i1.y) within group (graph path) LastY,
-			string_agg(cast(concat(i1.X, '.', i1.Y) as varchar(max)), ',') within group (graph path) Rt,
-			len(string_agg(cast(isnull(nullif(i1.X, i1.X), '1') as varchar(max)), '') within group (graph path)) Steps
-		from AOC_2024_Day18_Map i,
-			AOC_2024_Day18_Edges for path e,
-			AOC_2024_Day18_Map for path i1
-		where MATCH(shortest_path(i(-(e)->i1)+))
-			and i.X = 0
-			and i.Y = 0
+	, Final as
+	(select top 1 *
+		from rec
+		order by Steps desc
 	)
-	, l as
-	(select Steps
-		from r
-		where LastX = MaxX
-			and LastY = MaxY
+	, FirstIDs as
+	(select min(b.ID) fID
+		from Final
+			cross apply openjson(Rts) j
+			cross apply string_split(json_value([value], '$.r'), ',') r
+			inner join AOC_2024_Day18_Bytes b on concat(X, '.', Y) = r.[value]
+		group by j.[key]
 	)
 select concat(X, ',', Y) Answer2
-from #Input
-where ID = @MaxID
-	and not exists (select *
-					from l
-					)
+from AOC_2024_Day18_Bytes
+where ID = (select max(fID)
+			from FirstIDs
+			)
+option (maxrecursion 32767)
