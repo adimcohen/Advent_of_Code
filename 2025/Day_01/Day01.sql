@@ -45,7 +45,7 @@ where FinalPosition = 0
 	(select *
 			, lag(FinalPosition) over(order by ordinal) LastFinal
 		from i1
-			cross apply (select (BaseCalc+100)%100 FinalPosition) f
+			cross apply (select (BaseCalc+10000)%100 FinalPosition) f
 	)
-select sum(iif(LastFinal + Mov not between 1 and 100 and LastFinal != 0 or FinalPosition = 0, 1, 0)) + sum(steps/100) Solution2
+select sum(iif((LastFinal + Mov not between 1 and 100 and LastFinal != 0) or FinalPosition = 0, 1, 0)) + sum(steps/100) Solution2
 from i2
