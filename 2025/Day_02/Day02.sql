@@ -19,7 +19,7 @@ where l1%2 = 0
 	(select *, max(len(cast(Num2 as varchar(max)))) over() MaxLen
 		from #Input
 	)
-select sum(v1.[value])
+select sum(v1.[value]) Solution2
 from i
 	cross apply generate_series(Num1, Num2) v1
 	cross apply (select cast(v1.[value] as varchar(100)) n1) n
