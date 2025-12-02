@@ -29,15 +29,23 @@ select count(*) Solution1
 from i1
 where FinalPosition = 0
 
-;with rec as
-	(select cast(0 as int) step, cast(50 as int) loc, 0 Points
+;with i as
+	(select *
+		from #Input
 		union all
-		select cast(i.ordinal as int), FinalPosition, iif((BaseCalc not between 1 and 99) and loc != 0, 1, 0) + i.steps/100
-		from rec r
-			inner join #Input i on i.ordinal = r.step + 1
-			cross apply (select cast(loc + iif(i.dir = 'L', -1, 1)*(i.steps%100) as int) BaseCalc) b
-			cross apply (select (BaseCalc+100)%100 FinalPosition) f
+		select 0, '', 50
 	)
-select sum(Points) Solution2
-from rec
-option (maxrecursion 32767)
+	, i1 as
+	(select *
+			, sum(Mov) over(order by ordinal rows between unbounded preceding and current row) BaseCalc
+		from i
+			cross apply (select iif(dir = 'L', -1, 1)*(steps%100) Mov) m
+	)
+	, i2 as
+	(select *
+			, lag(FinalPosition) over(order by ordinal) LastFinal
+		from i1
+			cross apply (select (BaseCalc+10000)%100 FinalPosition) f
+	)
+select sum(iif(LastFinal + Mov not between 1 and 100 and LastFinal != 0 or FinalPosition = 0, 1, 0)) + sum(steps/100) Solution2
+from i2
