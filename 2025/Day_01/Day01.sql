@@ -22,7 +22,7 @@ from string_split(replace(@Input, char(10), ''), char(13), 1)
 		select 0, '', 50
 	)
 	, i1 as
-	(select *, (sum(iif(dir = 'L', -1, 1)*(steps%100)) over(order by ordinal rows between unbounded preceding and current row) + 100)%100 FinalPosition
+	(select *, sum(iif(dir = 'L', -1, 1)*steps) over(order by ordinal rows between unbounded preceding and current row)%100 FinalPosition
 		from i
 	)
 select count(*) Solution1
@@ -45,7 +45,7 @@ where FinalPosition = 0
 	(select *
 			, lag(FinalPosition) over(order by ordinal) LastFinal
 		from i1
-			cross apply (select (BaseCalc+10000)%100 FinalPosition) f
+			cross apply (select (BaseCalc+100)%100 FinalPosition) f
 	)
 select sum(iif(LastFinal + Mov not between 1 and 100 and LastFinal != 0 or FinalPosition = 0, 1, 0)) + sum(steps/100) Solution2
 from i2
