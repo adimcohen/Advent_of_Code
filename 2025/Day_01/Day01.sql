@@ -1,4 +1,3 @@
-drop table if exists #Input
 declare @Input varchar(max) =
 'L68
 L30
@@ -11,6 +10,7 @@ L99
 R14
 L82'
 
+drop table if exists #Input
 select cast(ordinal as int) ordinal, left([value], 1) dir, cast(substring([value], 2, 1000) as int) steps
 into #Input
 from string_split(replace(@Input, char(10), ''), char(13), 1)
