@@ -1,6 +1,6 @@
 declare @Input varchar(max) =
-'Time:        49     78     79     80
-Distance:   298   1185   1066   1181'
+'Time:      7  15   30
+Distance:  9  40  200'
 
 drop table if exists #Input
 ;with i as
