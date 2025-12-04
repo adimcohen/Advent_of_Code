@@ -1,33 +1,3 @@
-create or alter function fn_AOC_2025_04_RemoveRolls(@Map varchar(max)) returns table
-as
-return with Input as
-			(select cast(json_value([value], '$.r') as int) r
-					, cast(json_value([value], '$.c') as int) c
-					, json_value([value], '$.h') chr
-				from openjson(@map)
-			)
-			, i as
-			(select i1.r, i1.c, i1.chr
-					, iif(lag(i1.chr) over(partition by i1.c order by i1.r) = '@', 1, 0)
-					+ iif(lead(i1.chr) over(partition by i1.c order by i1.r) = '@', 1, 0)
-					+ iif(lag(i1.chr) over(partition by i1.r order by i1.c) = '@', 1, 0)
-					+ iif(lead(i1.chr) over(partition by i1.r order by i1.c) = '@', 1, 0)
-					+ iif(lag(i1.chr) over(partition by i1.r + i1.c order by i1.r) = '@', 1, 0)
-					+ iif(lead(i1.chr) over(partition by i1.r + i1.c order by i1.r) = '@', 1, 0)
-					+ iif(lag(i1.chr) over(partition by i1.r - i1.c order by i1.r) = '@', 1, 0)
-					+ iif(lead(i1.chr) over(partition by i1.r - i1.c order by i1.r) = '@', 1, 0) Around
-				from Input i1
-			)
-		select (select i.r, i.c, iif((chr = '@'
-										and Around < 4
-										)
-									, '.'
-									, i.chr) h
-				from i
-				order by r, c
-				for json path
-				) map
-GO
 declare @Input varchar(max) =
 '..@@.@@@@.
 @@@.@.@.@@
@@ -47,16 +17,16 @@ from string_split(replace(@Input, char(13), ''), char(10), 1) r
 	cross apply generate_series(cast(1 as int), cast(len(r.[value]) as int)) c
 
 ;with i as
-	(select i1.chr
-			, iif(lag(i1.chr) over(partition by i1.c order by i1.r) = '@', 1, 0)
-			+ iif(lead(i1.chr) over(partition by i1.c order by i1.r) = '@', 1, 0)
-			+ iif(lag(i1.chr) over(partition by i1.r order by i1.c) = '@', 1, 0)
-			+ iif(lead(i1.chr) over(partition by i1.r order by i1.c) = '@', 1, 0)
-			+ iif(lag(i1.chr) over(partition by i1.r + i1.c order by i1.r) = '@', 1, 0)
-			+ iif(lead(i1.chr) over(partition by i1.r + i1.c order by i1.r) = '@', 1, 0)
-			+ iif(lag(i1.chr) over(partition by i1.r - i1.c order by i1.r) = '@', 1, 0)
-			+ iif(lead(i1.chr) over(partition by i1.r - i1.c order by i1.r) = '@', 1, 0) Around
-		from #Input i1
+	(select i.chr
+			, iif(lag(i.chr) over(partition by i.c order by i.r) = '@', 1, 0)
+			+ iif(lead(i.chr) over(partition by i.c order by i.r) = '@', 1, 0)
+			+ iif(lag(i.chr) over(partition by i.r order by i.c) = '@', 1, 0)
+			+ iif(lead(i.chr) over(partition by i.r order by i.c) = '@', 1, 0)
+			+ iif(lag(i.chr) over(partition by i.r + i.c order by i.r) = '@', 1, 0)
+			+ iif(lead(i.chr) over(partition by i.r + i.c order by i.r) = '@', 1, 0)
+			+ iif(lag(i.chr) over(partition by i.r - i.c order by i.r) = '@', 1, 0)
+			+ iif(lead(i.chr) over(partition by i.r - i.c order by i.r) = '@', 1, 0) Around
+		from #Input i
 	)
 select count(*) Solution1
 from i
@@ -76,7 +46,30 @@ where chr = '@'
 		union all
 		select m.map, step + 1
 		from rec r
-			cross apply fn_AOC_2025_04_RemoveRolls(map) m
+			cross apply (select (select i.r, i.c, iif((chr = '@'
+													and Around < 4
+													)
+												, '.'
+												, i.chr) h
+							from (select i.r, i.c, i.chr
+									, iif(lag(i.chr) over(partition by i.c order by i.r) = '@', 1, 0)
+									+ iif(lead(i.chr) over(partition by i.c order by i.r) = '@', 1, 0)
+									+ iif(lag(i.chr) over(partition by i.r order by i.c) = '@', 1, 0)
+									+ iif(lead(i.chr) over(partition by i.r order by i.c) = '@', 1, 0)
+									+ iif(lag(i.chr) over(partition by i.r + i.c order by i.r) = '@', 1, 0)
+									+ iif(lead(i.chr) over(partition by i.r + i.c order by i.r) = '@', 1, 0)
+									+ iif(lag(i.chr) over(partition by i.r - i.c order by i.r) = '@', 1, 0)
+									+ iif(lead(i.chr) over(partition by i.r - i.c order by i.r) = '@', 1, 0) Around
+								from (select cast(json_value([value], '$.r') as int) r
+											, cast(json_value([value], '$.c') as int) c
+											, json_value([value], '$.h') chr
+										from openjson(r.map)
+									) i
+								) i
+							order by r, c
+							for json path
+							) map
+						) m
 		where r.map != m.map
 	)
 	, lst as
