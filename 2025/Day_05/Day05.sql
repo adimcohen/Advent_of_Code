@@ -63,15 +63,15 @@ where exists (select *
 				where ing between v1 and v2)
 
 ;with anc as
-			(select *
-				from #FreshRanges r
-				where not exists (select *
-									from #FreshRanges r1
-									where r1.ordinal != r.ordinal
-										and r.v1 between r1.v1 and r1.v2
-										and r.v2 between r1.v1 and r1.v2
-									)
-			)
+		(select *
+			from #FreshRanges r
+			where not exists (select *
+								from #FreshRanges r1
+								where r1.ordinal != r.ordinal
+									and r.v1 between r1.v1 and r1.v2
+									and r.v2 between r1.v1 and r1.v2
+								)
+		)
 	, rec as
 	(select (select v1, v2
 				from anc
@@ -92,6 +92,6 @@ where exists (select *
 select sum(v2 - v1 + 1) Solution2
 from lst
 	cross apply openjson(rng)
-		cross apply (select cast(json_value([value], '$.v1') as bigint) v1
-							, cast(json_value([value], '$.v2') as bigint) v2
-					) p
+	cross apply (select cast(json_value([value], '$.v1') as bigint) v1
+						, cast(json_value([value], '$.v2') as bigint) v2
+				) p
