@@ -1,3 +1,4 @@
+--p2 only works for real input
 declare @Input varchar(max) = 
 'RL
 
