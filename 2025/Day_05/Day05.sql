@@ -45,7 +45,7 @@ declare @Input varchar(max) =
 32'
 
 drop table if exists #FreshRanges
-drop table if exists #Ingridiants
+drop table if exists #Ingredients
 select max(ordinal) ordinal, cast(parsename(val, 2) as bigint) v1, cast(parsename(val, 1) as bigint) v2
 into #FreshRanges
 from string_split(replace(left(@Input, charindex(char(13)+char(10)+char(13)+char(10), @Input, 1)), char(13), ''), char(10), 1) r
@@ -53,11 +53,11 @@ from string_split(replace(left(@Input, charindex(char(13)+char(10)+char(13)+char
 group by cast(parsename(val, 2) as bigint), cast(parsename(val, 1) as bigint)
 
 select cast([value] as bigint) ing
-into #Ingridiants
+into #Ingredients
 from string_split(replace(substring(@Input, charindex(char(13)+char(10)+char(13)+char(10), @Input, 1) + 4, len(@Input)), char(13), ''), char(10), 1) r
 
 select count(*) Solution1
-from #Ingridiants
+from #Ingredients
 where exists (select *
 				from #FreshRanges
 				where ing between v1 and v2)
