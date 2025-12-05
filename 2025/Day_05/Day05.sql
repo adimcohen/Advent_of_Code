@@ -1,21 +1,11 @@
 create or alter function fn_AOC_2025_05_DedupRanges(@rng varchar(max)) returns table
 as
-return with r as
+return with i as
 			(select v1, v2, row_number() over(order by v1) rn
 				from openjson(@rng)
 					cross apply (select cast(json_value([value], '$.v1') as bigint) v1
 										, cast(json_value([value], '$.v2') as bigint) v2
 								) p
-			)
-			, i as
-			(select *
-				from r
-				where not exists (select *
-									from r r1
-									where r1.rn != r.rn
-										and r.v1 between r1.v1 and r1.v2
-										and r.v2 between r1.v1 and r1.v2
-									)
 			)
 			, f as
 			(select least(f1.v1, f2.v1) v1, greatest(f1.v2, f2.v2) v2
@@ -72,9 +62,19 @@ where exists (select *
 				from #FreshRanges
 				where ing between v1 and v2)
 
-;with rec as
+;with anc as
+			(select *
+				from #FreshRanges r
+				where not exists (select *
+									from #FreshRanges r1
+									where r1.ordinal != r.ordinal
+										and r.v1 between r1.v1 and r1.v2
+										and r.v2 between r1.v1 and r1.v2
+									)
+			)
+	, rec as
 	(select (select v1, v2
-				from #FreshRanges
+				from anc
 				order by v1
 				for json path
 				) rng, 0 step
