@@ -1,36 +1,3 @@
-create or alter function fn_AOC_2025_05_DedupRanges(@rng varchar(max)) returns table
-as
-return with i as
-			(select v1, v2, row_number() over(order by v1) rn
-				from openjson(@rng)
-					cross apply (select cast(json_value([value], '$.v1') as bigint) v1
-										, cast(json_value([value], '$.v2') as bigint) v2
-								) p
-			)
-			, f as
-			(select least(f1.v1, f2.v1) v1, greatest(f1.v2, f2.v2) v2
-				from i f1
-					inner join i f2 on f2.rn != f1.rn
-									and (f2.v1 between f1.v1 and f1.v2
-										or f2.v2 between f1.v1 and f1.v2
-										)
-				union
-				select v1, v2
-				from i f1
-				where not exists (select *
-									from i f2
-									where f2.rn != f1.rn
-										and (f1.v1 between f2.v1 and f2.v2
-											or f1.v2 between f2.v1 and f2.v2
-											)
-									)
-				)
-		select (select v1, v2
-				from f
-				order by v1
-				for json path
-				) rng
-GO
 declare @Input varchar(max) =
 '3-5
 10-14
@@ -62,7 +29,7 @@ where exists (select *
 				from #FreshRanges
 				where ing between v1 and v2)
 
-;with anc as
+;with dedup as
 		(select *
 			from #FreshRanges r
 			where not exists (select *
@@ -72,26 +39,28 @@ where exists (select *
 									and r.v2 between r1.v1 and r1.v2
 								)
 		)
-	, rec as
-	(select (select v1, v2
-				from anc
-				order by v1
-				for json path
-				) rng, 0 step
-		union all
-		select d.rng, r.step + 1
-		from rec r
-			cross apply fn_AOC_2025_05_DedupRanges(rng) d
-		where d.rng != r.rng
+	, i as
+	(select v1 val, 1 IsStart
+		from dedup
+		union
+		select v2, -1 IsStart
+		from dedup
 	)
-	, lst as
-		(select top 1 *
-			from rec
-			order by step desc
-		)
+	, i1 as
+	(select *, sum(IsStart) over(order by val, IsStart desc) lvl
+		from i
+	)
+	, i2 as
+	(select *
+			, row_number() over(order by val, IsStart desc) rn
+			, iif(lag(lvl, 1, 0) over(order by val, IsStart desc) = 0, val, null) v1
+			, iif(lvl = 0, val, null) v2
+		from i1
+	)
+	, i3 as
+	(select last_value(v1) ignore nulls over(order by rn rows between unbounded preceding and current row) v1, v2
+		from i2
+	)
 select sum(v2 - v1 + 1) Solution2
-from lst
-	cross apply openjson(rng)
-	cross apply (select cast(json_value([value], '$.v1') as bigint) v1
-						, cast(json_value([value], '$.v2') as bigint) v2
-				) p
+from i3
+where v2 is not null
