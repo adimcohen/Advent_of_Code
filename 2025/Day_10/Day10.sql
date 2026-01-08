@@ -45,7 +45,7 @@ return with b as
 									from string_split(joltage, ',', 1)
 								) j
 			union all
-			select j.joltage, joltage_bin ^ button_bin, base_pushes, new_pushes + 1 double_pushes, button_bin last_pushed
+			select j.joltage, joltage_bin ^ button_bin, base_pushes, new_pushes + 1 new_pushes, button_bin last_pushed
 			from rec r
 				inner join b on button_bin > last_pushed
 				cross apply fn_AOC_2025_10_P2_DeductButtonFromJoltage(r.joltage, b.button) j
@@ -94,8 +94,6 @@ into #Input
 from string_split(replace(@Input, char(13), ''), char(10), 1) r
 	cross apply (select '[' + replace(replace(replace(replace(replace(replace(replace([value], '[', '"'), ']', '",['), '(', '['), ')', '],'), '{', '] ['), '}', ']'), ', ]', '],') + ']' js) j
 	
-
-
 ;with rec as
 	(select id, cast(concat(',', 0, ',') as varchar(max)) states, 0 step, desired, b.buttons
 		from #Input i
